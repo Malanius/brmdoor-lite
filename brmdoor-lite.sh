@@ -36,8 +36,18 @@ clean_gpio() {
 # If master card is detected, allow to add or remove cards from $ALLOWED_LIST
 check_card(){
 	MANAGER=$1
+	MANAGER_CARD=$2
 	log_message "Please read the card to manage:"
-	read MANAGED_CARD
+	read -t 5 MANAGED_CARD
+	echo "Manager: $MANAGER"
+	echo "Managed card: $MANAGED_CARD"
+	if [ -z "$MANAGED_CARD" ]; then
+		log_message "Management timeout, try again..."
+		return 1
+	elif [ "${MANAGED_CARD}" = "${MANAGER_CARD}" ]; then
+		log_message "Can't add this master card to allowed.list"
+		return 1
+  fi
 	LINE=`grep -ie "^${MANAGED_CARD};.*" "${ALLOWED_LIST}"`
 	#echo "Line: $LINE"
 	if [ -z "$LINE" ]; then #card is not present in $ALLOWED_LIST, so we add it
@@ -93,7 +103,7 @@ while true; do
 			echo 0 > /sys/class/gpio/gpio${GPIO_LED_KO}/value
 		elif [ ! -z "$ML_NAME" ]; then
 			log_message "Master card $CARD($ML_NAME) detected."
-			check_card "${ML_NAME}"
+			check_card "${ML_NAME}" "${CARD}"
 		else
 			log_message "DOOR UNLOCKED by $AL_NAME $CARD"
 			echo UNLOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
