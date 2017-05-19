@@ -106,10 +106,10 @@ while true; do
 			check_card "${ML_NAME}" "${CARD}"
 		else
 			log_message "DOOR UNLOCKED by $AL_NAME $CARD"
-			echo UNLOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
+			echo $UNLOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
 			echo 1 > /sys/class/gpio/gpio${GPIO_LED_OK}/value
 			sleep $LOCK_TIMEOUT
-			echo LOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
+			echo $LOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
 			echo 0 > /sys/class/gpio/gpio${GPIO_LED_OK}/value
 			log_message "DOOR_LOCKED"
 		fi
