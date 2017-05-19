@@ -1,13 +1,38 @@
-This is quick and dirty version of brmdoor that does not require Arduino, and runs only on Raspberry Pi.
+# brmdoor lite
 
-This version of brmdoor requires:
-- create user brmdoor, ~brmdoor/.screenrc
-- create /etc/systemd/system/brmdoor.service in case systemd is used to autostart brmdoor service
-- irssi configured according to ./irssi/config with loaded scripts from ./irssi/scripts
-- libnfc-compatible smartcard reader
-- libnfc installed
-- create /etc/nfc/libnfc.conf using content from libnfc.conf supplied (otherwise nfc-list wouldnt find your NFC device)
-- nfc-getcard.c compiled against libnfc (with -lnfc) and saved as "./nfc-getcard"
-- to be running on RaspberryPi (or simillar with GPIO pins exported through /proc)
-- variables in brmdoor-rpi.sh modified according to reality
-- list of allowed cards in allowed.list in the correct format
+## Description
+Forked from [brmdoor/brmlab](https://github.com/brmlab/brmdoor)
+
+This implementation of brmdoor is aimed for ofline use on RaspberryPi 1 (newer can be used too). All online features (IRC and hackerspace status reporting removed).
+
+## Features
+- Acces cards managed by master cards
+- Configurable GPIO pins
+- Event logging
+
+## Requirements
+- RaspberryPi
+- Keyboard card reader
+- Electric door lock
+- Circuit to control the lock (use galvanicly separated circuit to protect the RPi), we used this [2 relay modude](https://www.amazon.com/SainSmart-101-70-100-2-Channel-Relay-Module/dp/B0057OC6D8)
+- Cards for access
+
+## Configuration
+Configuration is located in **brmdoor.conf** file. You can set:
+- GPIO pins - locks, aditional LEDs pins
+- Lock timeout - how long the lock should stay open on authorised card
+- path to list of allowed cards
+- path to list of master cards
+- path to the log file (use /dev/null to disable logging)
+
+## Cards list
+Both cards list are in this format:
+{CARD_ID};{SOME_NAME}
+*Do not use spaces, so names are not truncated from the log.*
+
+### masters.list
+Contains cards that are allowed to add or remove cards from allowed.list.
+**Master cards can't unlock the door!**
+
+### allowed.list
+Contains cards that are allowed to open the door.

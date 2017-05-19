@@ -33,6 +33,47 @@ clean_gpio() {
 	log_message "Door script ended."
 }
 
+# If master card is detected, allow to add or remove cards from $ALLOWED_LIST
+check_card(){
+	MANAGER=$1
+	MANAGER_CARD=$2
+	log_message "Please read the card to manage:"
+	read -t 5 MANAGED_CARD
+	echo "Manager: $MANAGER"
+	echo "Managed card: $MANAGED_CARD"
+	if [ -z "$MANAGED_CARD" ]; then
+		log_message "Management timeout, try again..."
+		return 1
+	elif [ "${MANAGED_CARD}" = "${MANAGER_CARD}" ]; then
+		log_message "Can't add this master card to allowed.list"
+		return 1
+  fi
+	LINE=`grep -ie "^${MANAGED_CARD};.*" "${ALLOWED_LIST}"`
+	#echo "Line: $LINE"
+	if [ -z "$LINE" ]; then #card is not present in $ALLOWED_LIST, so we add it
+		add_card "$MANAGED_CARD" "$MANAGER"
+	else #card exists in $ALLOWED_LIST, remove it
+		remove_card "$MANAGED_CARD" "$MANAGER"
+	fi
+}
+
+#Adds new card to $ALLOWED_LIST, since we don't know name, add note who added it
+add_card(){
+	NEW_CARD=$1
+	ADDED_BY=$2
+	echo "$NEW_CARD;added_by_${ADDED_BY}_on_`date "+%Y-%m-%d-%T"`" >> $ALLOWED_LIST
+	log_message "$NEW_CARD added by $ADDED_BY on `date "+%Y-%m-%d %T"`"
+}
+
+#Removes card from $ALLOWED_LIST
+remove_card(){
+	DELETE_CARD=$1
+	MANAGER=$2
+	cat $ALLOWED_LIST | sed -e "s/^$DELETE_CARD;.*/#$DELETE_CARD;removed_by_${MANAGER}_on_`date "+%Y-%m-%d-%T"`/" > ./allowed.temp
+	mv ./allowed.temp $ALLOWED_LIST
+	log_message "Card $DELETE_CARD removed by $MANAGER on `date "+%Y-%m-%d %T"`"
+}
+
 log_message() {
 	echo "`date "+%Y-%m-%d %T"` $1" | tee -a $LOG_PATH
 }
@@ -51,18 +92,24 @@ while true; do
 	log_message "Awaiting card..."
 	read CARD
 	if [ -n "$CARD" ]; then # we have a card
-		NAME=`grep -i "^${CARD};[0-9a-zA-Z_-]*" "$ALLOWED_LIST"| cut -d ';' -f 2`
-		if [ -z "$NAME" ]; then
+	  ML_NAME=`grep -ie "^${CARD};.*" $MASTERS_LIST | cut -d ';' -f 2`
+		#echo "ML NAME: $ML_NAME"
+		AL_NAME=`grep -ie "^${CARD};.*" $ALLOWED_LIST | cut -d ';' -f 2`
+		#echo "AL NAME: $AL_NAME"
+		if [ -z "$AL_NAME" -a -z "$ML_NAME" ]; then
 			log_message "UNKNOWN_CARD $CARD"
 			echo 1 > /sys/class/gpio/gpio${GPIO_LED_KO}/value
-			sleep $LOCK_TIMEOUT
+			#sleep $LOCK_TIMEOUT
 			echo 0 > /sys/class/gpio/gpio${GPIO_LED_KO}/value
+		elif [ ! -z "$ML_NAME" ]; then
+			log_message "Master card $CARD($ML_NAME) detected."
+			check_card "${ML_NAME}" "${CARD}"
 		else
-			log_message "DOOR_UNLOCKED $NAME $CARD"
-			echo UNLOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
+			log_message "DOOR UNLOCKED by $AL_NAME $CARD"
+			echo $UNLOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
 			echo 1 > /sys/class/gpio/gpio${GPIO_LED_OK}/value
 			sleep $LOCK_TIMEOUT
-			echo LOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
+			echo $LOCKED > /sys/class/gpio/gpio${GPIO_LOCK}/value
 			echo 0 > /sys/class/gpio/gpio${GPIO_LED_OK}/value
 			log_message "DOOR_LOCKED"
 		fi
